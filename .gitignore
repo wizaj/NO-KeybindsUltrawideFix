@@ -1,0 +1,18 @@
+# Build output
+bin/
+obj/
+*.user
+*.suo
+
+# Game assemblies — never commit these, they are copyrighted
+lib/
+*.dll
+!BepInEx/**/*.dll
+
+# IDE
+.vs/
+.idea/
+.vscode/
+
+# macOS
+.DS_Store

@@ -1,8 +1,6 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -41,7 +39,7 @@ namespace KeybindsUltrawideFix
     {
         public const string PluginGuid = "local.keybindsultrawidefix";
         public const string PluginName = "Keybinds Ultrawide Fix";
-        public const string PluginVersion = "0.1.2";
+        public const string PluginVersion = "0.2.0";
 
         private const float AspectTolerance = 0.01f;
 
@@ -75,12 +73,9 @@ namespace KeybindsUltrawideFix
         private static readonly Dictionary<int, Vector2> OriginalOffsets = new Dictionary<int, Vector2>();
         private static readonly HashSet<string> WarnedOnce = new HashSet<string>();
 
-        private static Plugin Instance;
-
         private void Awake()
         {
             Log = Logger;
-            Instance = this;
 
             CenterContent = Config.Bind("Layout", "CenterContent", true,
                 "Keep the keybinds window at the width it was designed for (16:9) and centre it, " +
@@ -142,101 +137,10 @@ namespace KeybindsUltrawideFix
                     ApplyFix(scaler, 16f / 9f, scaler != null ? scaler.referenceResolution.x : 0f, __instance);
                 }
 
-                if (Instance != null)
-                    Instance.StartCoroutine(DumpRoutine(__instance));
             }
             catch (Exception e)
             {
                 Log.LogError($"Open postfix failed: {e}");
-            }
-        }
-
-        private static IEnumerator DumpRoutine(ControlMapper mapper)
-        {
-            DumpLayout(mapper, "on open");
-            yield return new WaitForSecondsRealtime(1f);
-            DumpLayout(mapper, "1s later");
-        }
-
-        // Temporary diagnostics: logs everything relevant about the menu's
-        // canvas so scaling problems can be diagnosed from LogOutput.log.
-        private static void DumpLayout(ControlMapper mapper, string tag)
-        {
-            try
-            {
-                var sb = new StringBuilder();
-                sb.AppendLine($"--- layout dump ({tag}) — screen {Screen.width}x{Screen.height} ---");
-
-                var canvasGo = MapperCanvasField?.GetValue(mapper) as GameObject;
-                if (canvasGo == null)
-                {
-                    Log.LogInfo(sb.Append("no canvas GameObject").ToString());
-                    return;
-                }
-
-                var canvas = canvasGo.GetComponentInChildren<Canvas>(true);
-                if (canvas != null)
-                {
-                    var crt = (RectTransform)canvas.transform;
-                    sb.AppendLine($"canvas '{canvas.name}' renderMode={canvas.renderMode} " +
-                                  $"isRootCanvas={canvas.isRootCanvas} scaleFactor={canvas.scaleFactor:F3} " +
-                                  $"rect={crt.rect.width:F0}x{crt.rect.height:F0} lossyScale={crt.lossyScale.x:F3}");
-                }
-                else
-                {
-                    sb.AppendLine("no Canvas component found");
-                }
-
-                for (Transform t = canvasGo.transform.parent; t != null; t = t.parent)
-                {
-                    var parentCanvas = t.GetComponent<Canvas>();
-                    if (parentCanvas != null)
-                        sb.AppendLine($"PARENT canvas '{t.name}' renderMode={parentCanvas.renderMode} " +
-                                      $"scaleFactor={parentCanvas.scaleFactor:F3}");
-                    var parentScaler = t.GetComponent<CanvasScaler>();
-                    if (parentScaler != null)
-                        sb.AppendLine($"PARENT scaler '{t.name}' mode={parentScaler.uiScaleMode} " +
-                                      $"ref={parentScaler.referenceResolution}");
-                }
-
-                foreach (var scaler in canvasGo.GetComponentsInChildren<CanvasScaler>(true))
-                    sb.AppendLine($"scaler '{scaler.name}' enabled={scaler.enabled} mode={scaler.uiScaleMode} " +
-                                  $"match={scaler.screenMatchMode}/{scaler.matchWidthOrHeight:F2} " +
-                                  $"ref={scaler.referenceResolution}");
-
-                var fitter = canvasGo.GetComponentInChildren<CanvasScalerFitter>(true);
-                if (fitter != null && FitterBreakPointsField != null &&
-                    FitterBreakPointsField.GetValue(fitter) is Array breakPoints)
-                {
-                    foreach (object bp in breakPoints)
-                    {
-                        if (bp == null) continue;
-                        sb.AppendLine($"breakpoint aspect={(float)BreakPointAspectField.GetValue(bp):F3} " +
-                                      $"ref={(Vector2)BreakPointResolutionField.GetValue(bp)}");
-                    }
-                }
-
-                RectTransform content = GetMainContent(mapper);
-                if (content != null)
-                    sb.AppendLine($"mainContent '{content.name}' anchors=({content.anchorMin.x:F2},{content.anchorMin.y:F2})-" +
-                                  $"({content.anchorMax.x:F2},{content.anchorMax.y:F2}) " +
-                                  $"offsets=({content.offsetMin.x:F0},{content.offsetMin.y:F0})-" +
-                                  $"({content.offsetMax.x:F0},{content.offsetMax.y:F0}) " +
-                                  $"rect={content.rect.width:F0}x{content.rect.height:F0}");
-
-                foreach (Transform child in canvasGo.transform)
-                {
-                    if (!(child is RectTransform rt)) continue;
-                    sb.AppendLine($"child '{child.name}' active={child.gameObject.activeSelf} " +
-                                  $"rect={rt.rect.width:F0}x{rt.rect.height:F0} " +
-                                  $"anchors=({rt.anchorMin.x:F2},{rt.anchorMin.y:F2})-({rt.anchorMax.x:F2},{rt.anchorMax.y:F2})");
-                }
-
-                Log.LogInfo(sb.ToString());
-            }
-            catch (Exception e)
-            {
-                Log.LogError($"Layout dump failed: {e}");
             }
         }
 
